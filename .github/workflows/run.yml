@@ -12,7 +12,7 @@ jobs:
   build:
     runs-on: ubuntu-latest
     permissions:
-      contents: write # 允许 GitHub Token 写入 Release
+      contents: write # Allow GitHub Token to write to Release
 
     steps:
       - name: Set variables
@@ -34,81 +34,145 @@ jobs:
           echo "telegram_cidr=https://raw.githubusercontent.com/Loyalsoldier/geoip/release/text/telegram.txt" >> $GITHUB_ENV
         shell: bash
 
-      - name: Generate icloud.txt file
+      - name: Generate icloud.json file
         run: |
-          echo "domain_suffix:" > icloud.txt
-          curl -sSL ${custom_icloud} | grep -E "^(full|domain):" | awk -F ':' '{printf "  - %s\n", $2}' >> icloud.txt
+          curl -sSL ${custom_icloud} | grep -E "^(full|domain):" | awk -F ':' '{print "  \"" $2 "\","}' > temp.txt
+          sed -i '$ s/,$//' temp.txt # Remove trailing comma
+          echo '{"version": 1, "rules": [{"domain_suffix": [' > icloud.json
+          cat temp.txt >> icloud.json
+          echo ']}]}' >> icloud.json
+          rm temp.txt
 
-      - name: Generate google.txt file
+      - name: Generate google.json file
         run: |
-          echo "domain_suffix:" > google.txt
-          curl -sSL ${felixonmars_google} | perl -ne '/^server=\/([^\/]+)\// && print "  - $1\n"' >> google.txt
+          curl -sSL ${felixonmars_google} | perl -ne '/^server=\/([^\/]+)\// && print "  \"$1\",\n"' > temp.txt
+          sed -i '$ s/,$//' temp.txt
+          echo '{"version": 1, "rules": [{"domain_suffix": [' > google.json
+          cat temp.txt >> google.json
+          echo ']}]}' >> google.json
+          rm temp.txt
 
-      - name: Generate apple.txt file
+      - name: Generate apple.json file
         run: |
-          echo "domain_suffix:" > apple.txt
-          curl -sSL ${felixonmars_apple} | perl -ne '/^server=\/([^\/]+)\// && print "  - $1\n"' >> apple.txt
+          curl -sSL ${felixonmars_apple} | perl -ne '/^server=\/([^\/]+)\// && print "  \"$1\",\n"' > temp.txt
+          sed -i '$ s/,$//' temp.txt
+          echo '{"version": 1, "rules": [{"domain_suffix": [' > apple.json
+          cat temp.txt >> apple.json
+          echo ']}]}' >> apple.json
+          rm temp.txt
 
-      - name: Generate private.txt file
+      - name: Generate private.json file
         run: |
-          echo "domain:" > private.txt
-          curl -sSL ${custom_private} | awk -F ':' '/^full:/ {printf "  - %s\n", $2}' >> private.txt
-          echo "domain_suffix:" >> private.txt
-          curl -sSL ${custom_private} | awk -F ':' '/^domain:/ {printf "  - %s\n", $2}' >> private.txt
+          curl -sSL ${custom_private} | awk -F ':' '/^full:/ {print "  \"" $2 "\","}' > temp_full.txt
+          curl -sSL ${custom_private} | awk -F ':' '/^domain:/ {print "  \"" $2 "\","}' > temp_suffix.txt
+          sed -i '$ s/,$//' temp_full.txt
+          sed -i '$ s/,$//' temp_suffix.txt
+          echo '{"version": 1, "rules": [{' > private.json
+          echo '"domain": [' >> private.json
+          cat temp_full.txt >> private.json
+          echo '],' >> private.json
+          echo '"domain_suffix": [' >> private.json
+          cat temp_suffix.txt >> private.json
+          echo ']}]}' >> private.json
+          rm temp_full.txt temp_suffix.txt
 
-      - name: Generate direct.txt file
+      - name: Generate direct.json file
         run: |
-          echo "domain:" > direct.txt
-          curl -sSL ${Loyalsoldier_direct} | grep -Ev "^(regexp|keyword):" | perl -ne '/^(full:)([-_a-zA-Z0-9]+(\.[-_a-zA-Z0-9]+)*)/ && print "  - $2\n"' >> direct.txt
-          echo "domain_suffix:" >> direct.txt
-          curl -sSL ${Loyalsoldier_direct} | grep -Ev "^(regexp|keyword|full):" | perl -ne '/^(domain:)?([-_a-zA-Z0-9]+(\.[-_a-zA-Z0-9]+)*)/ && print "  - $2\n"' >> direct.txt
+          curl -sSL ${Loyalsoldier_direct} | grep -Ev "^(regexp|keyword):" | perl -ne '/^(full:)([-_a-zA-Z0-9]+(\.[-_a-zA-Z0-9]+)*)/ && print "  \"$2\",\n"' > temp_full.txt
+          curl -sSL ${Loyalsoldier_direct} | grep -Ev "^(regexp|keyword|full):" | perl -ne '/^(domain:)?([-_a-zA-Z0-9]+(\.[-_a-zA-Z0-9]+)*)/ && print "  \"$2\",\n"' > temp_suffix.txt
+          sed -i '$ s/,$//' temp_full.txt
+          sed -i '$ s/,$//' temp_suffix.txt
+          echo '{"version": 1, "rules": [{' > direct.json
+          echo '"domain": [' >> direct.json
+          cat temp_full.txt >> direct.json
+          echo '],' >> direct.json
+          echo '"domain_suffix": [' >> direct.json
+          cat temp_suffix.txt >> direct.json
+          echo ']}]}' >> direct.json
+          rm temp_full.txt temp_suffix.txt
 
-      - name: Generate proxy.txt file
+      - name: Generate proxy.json file
         run: |
-          echo "domain:" > proxy.txt
-          curl -sSL ${Loyalsoldier_proxy} | grep -Ev "^(regexp|keyword):" | perl -ne '/^(full:)([-_a-zA-Z0-9]+(\.[-_a-zA-Z0-9]+)*)/ && print "  - $2\n"' >> proxy.txt
-          echo "domain_suffix:" >> proxy.txt
-          curl -sSL ${Loyalsoldier_proxy} | grep -Ev "^(regexp|keyword|full):" | perl -ne '/^(domain:)?([-_a-zA-Z0-9]+(\.[-_a-zA-Z0-9]+)*)/ && print "  - $2\n"' >> proxy.txt
+          curl -sSL ${Loyalsoldier_proxy} | grep -Ev "^(regexp|keyword):" | perl -ne '/^(full:)([-_a-zA-Z0-9]+(\.[-_a-zA-Z0-9]+)*)/ && print "  \"$2\",\n"' > temp_full.txt
+          curl -sSL ${Loyalsoldier_proxy} | grep -Ev "^(regexp|keyword|full):" | perl -ne '/^(domain:)?([-_a-zA-Z0-9]+(\.[-_a-zA-Z0-9]+)*)/ && print "  \"$2\",\n"' > temp_suffix.txt
+          sed -i '$ s/,$//' temp_full.txt
+          sed -i '$ s/,$//' temp_suffix.txt
+          echo '{"version": 1, "rules": [{' > proxy.json
+          echo '"domain": [' >> proxy.json
+          cat temp_full.txt >> proxy.json
+          echo '],' >> proxy.json
+          echo '"domain_suffix": [' >> proxy.json
+          cat temp_suffix.txt >> proxy.json
+          echo ']}]}' >> proxy.json
+          rm temp_full.txt temp_suffix.txt
 
-      - name: Generate reject.txt file
+      - name: Generate reject.json file
         run: |
-          echo "domain_suffix:" > reject.txt
-          curl -sSL ${Loyalsoldier_reject} | grep -Ev "^(regexp|keyword):" | perl -ne '/^(domain:|full:)?([-_a-zA-Z0-9]+(\.[-_a-zA-Z0-9]+)*)/ && print "  - $2\n"' >> reject.txt
+          curl -sSL ${Loyalsoldier_reject} | grep -Ev "^(regexp|keyword):" | perl -ne '/^(domain:|full:)?([-_a-zA-Z0-9]+(\.[-_a-zA-Z0-9]+)*)/ && print "  \"$2\",\n"' > temp.txt
+          sed -i '$ s/,$//' temp.txt
+          echo '{"version": 1, "rules": [{"domain_suffix": [' > reject.json
+          cat temp.txt >> reject.json
+          echo ']}]}' >> reject.json
+          rm temp.txt
 
-      - name: Generate gfw.txt file
+      - name: Generate gfw.json file
         run: |
-          echo "domain_suffix:" > gfw.txt
-          curl -sSL ${Loyalsoldier_gfw} | grep -Ev "^(regexp|keyword):" | perl -ne '/^(domain:|full:)?([-_a-zA-Z0-9]+(\.[-_a-zA-Z0-9]+)*)/ && print "  - $2\n"' >> gfw.txt
+          curl -sSL ${Loyalsoldier_gfw} | grep -Ev "^(regexp|keyword):" | perl -ne '/^(domain:|full:)?([-_a-zA-Z0-9]+(\.[-_a-zA-Z0-9]+)*)/ && print "  \"$2\",\n"' > temp.txt
+          sed -i '$ s/,$//' temp.txt
+          echo '{"version": 1, "rules": [{"domain_suffix": [' > gfw.json
+          cat temp.txt >> gfw.json
+          echo ']}]}' >> gfw.json
+          rm temp.txt
 
-      - name: Generate greatfire.txt file
+      - name: Generate greatfire.json file
         run: |
-          echo "domain_suffix:" > greatfire.txt
-          curl -sSL ${Loyalsoldier_greatfire} | grep -Ev "^(regexp|keyword):" | perl -ne '/^(domain:|full:)?([-_a-zA-Z0-9]+(\.[-_a-zA-Z0-9]+)*)/ && print "  - $2\n"' >> greatfire.txt
+          curl -sSL ${Loyalsoldier_greatfire} | grep -Ev "^(regexp|keyword):" | perl -ne '/^(domain:|full:)?([-_a-zA-Z0-9]+(\.[-_a-zA-Z0-9]+)*)/ && print "  \"$2\",\n"' > temp.txt
+          sed -i '$ s/,$//' temp.txt
+          echo '{"version": 1, "rules": [{"domain_suffix": [' > greatfire.json
+          cat temp.txt >> greatfire.json
+          echo ']}]}' >> greatfire.json
+          rm temp.txt
 
-      - name: Generate tld-not-cn.txt file
+      - name: Generate tld-not-cn.json file
         run: |
-          echo "domain_suffix:" > tld-not-cn.txt
-          curl -sSL "${custom_tld_not_cn}" | perl -ne '/^domain:([-_a-zA-Z0-9]+(\.[-_a-zA-Z0-9]+)*)/ && print "  - $1\n"' >> tld-not-cn.txt
+          curl -sSL "${custom_tld_not_cn}" | perl -ne '/^domain:([-_a-zA-Z0-9]+(\.[-_a-zA-Z0-9]+)*)/ && print "  \"$1\",\n"' > temp.txt
+          sed -i '$ s/,$//' temp.txt
+          echo '{"version": 1, "rules": [{"domain_suffix": [' > tld-not-cn.json
+          cat temp.txt >> tld-not-cn.json
+          echo ']}]}' >> tld-not-cn.json
+          rm temp.txt
 
-      - name: Generate cncidr.txt file
+      - name: Generate cncidr.json file
         run: |
-          echo "ip_cidr:" > cncidr.txt
-          curl -sSL ${cn_cidr} | perl -ne '/(.+\/\d+)/ && print "  - $1\n"' >> cncidr.txt
+          curl -sSL ${cn_cidr} | perl -ne '/(.+\/\d+)/ && print "  \"$1\",\n"' > temp.txt
+          sed -i '$ s/,$//' temp.txt
+          echo '{"version": 1, "rules": [{"ip_cidr": [' > cncidr.json
+          cat temp.txt >> cncidr.json
+          echo ']}]}' >> cncidr.json
+          rm temp.txt
 
-      - name: Generate telegramcidr.txt file
+      - name: Generate telegramcidr.json file
         run: |
-          echo "ip_cidr:" > telegramcidr.txt
-          curl -sSL ${telegram_cidr} | perl -ne '/(.+\/\d+)/ && print "  - $1\n"' >> telegramcidr.txt
+          curl -sSL ${telegram_cidr} | perl -ne '/(.+\/\d+)/ && print "  \"$1\",\n"' > temp.txt
+          sed -i '$ s/,$//' temp.txt
+          echo '{"version": 1, "rules": [{"ip_cidr": [' > telegramcidr.json
+          cat temp.txt >> telegramcidr.json
+          echo ']}]}' >> telegramcidr.json
+          rm temp.txt
 
-      - name: Generate lancidr.txt file
+      - name: Generate lancidr.json file
         run: |
-          echo "ip_cidr:" > lancidr.txt
-          curl -sSL ${lan_cidr} | perl -ne '/(.+\/\d+)/ && print "  - $1\n"' >> lancidr.txt
+          curl -sSL ${lan_cidr} | perl -ne '/(.+\/\d+)/ && print "  \"$1\",\n"' > temp.txt
+          sed -i '$ s/,$//' temp.txt
+          echo '{"version": 1, "rules": [{"ip_cidr": [' > lancidr.json
+          cat temp.txt >> lancidr.json
+          echo ']}]}' >> lancidr.json
+          rm temp.txt
 
       - name: Move files to publish directory
         run: |
           mkdir -p publish
-          cp *.txt ./publish/
+          cp *.json ./publish/
 
       - name: Release and upload assets
         uses: softprops/action-gh-release@v2
