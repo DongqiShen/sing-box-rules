@@ -11,6 +11,9 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
+    permissions:
+      contents: write # 允许 GitHub Token 写入 Release
+
     steps:
       - name: Set variables
         run: |
